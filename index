@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>算术练习生成器 · 微信兼容版</title>
+    <title>算术练习生成器 · 微信兼容加强版</title>
     <style>
         body {
             font-family: 'Segoe UI', Roboto, sans-serif;
@@ -31,22 +31,42 @@
             font-style: italic;
             font-size: 1rem;
         }
-        .wechat-tip {
-            background: #fff3cd;
-            border: 1px solid #ffe69c;
-            border-radius: 12px;
-            padding: 12px 18px;
+        /* 微信特别提示 */
+        .wechat-alert {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 16px;
+            padding: 18px 20px;
             margin-bottom: 25px;
-            color: #856404;
-            text-align: center;
+            color: #721c24;
+            text-align: left;
             font-size: 1rem;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .wechat-alert strong {
+            font-size: 1.1rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .wechat-alert ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .wechat-alert li {
+            margin: 5px 0;
+        }
+        .wechat-alert .tip-highlight {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
         }
         .controls {
             display: flex;
             justify-content: center;
-            gap: 15px;
-            margin-bottom: 40px;
+            gap: 12px;
+            margin-bottom: 30px;
             flex-wrap: wrap;
         }
         button {
@@ -54,19 +74,21 @@
             border: 2px solid #2a9d8f;
             color: #2a9d8f;
             font-size: 1.2rem;
-            padding: 12px 25px;
+            padding: 12px 20px;
             border-radius: 40px;
             cursor: pointer;
             font-weight: 600;
             transition: 0.2s;
             box-shadow: 0 4px 8px rgba(0,0,0,0.05);
             -webkit-tap-highlight-color: transparent;
+            flex: 1 0 auto;
+            min-width: 200px;
         }
         button:active {
             background: #2a9d8f;
             color: white;
             border-color: #1e7a6f;
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
         .section {
             background: white;
@@ -121,16 +143,36 @@
             margin-top: 20px;
             font-size: 0.9rem;
         }
+        .emergency-box {
+            background: #e2f0d9;
+            border: 1px solid #a3c9a0;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .emergency-box p {
+            margin: 8px 0;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🧮 算术练习生成器</h1>
-        <div class="sub">分数应用题已保证整数 · 微信内若无法点击请用浏览器打开</div>
-        
-        <!-- 微信提示 -->
-        <div class="wechat-tip">
-            ⚠️ 如果点击按钮没有反应，请点击右上角 <strong>···</strong> 选择 <strong>“在浏览器打开”</strong>。
+        <div class="sub">分数应用题已保证整数</div>
+
+        <!-- 微信环境检测与提示（动态显示） -->
+        <div id="wechatHint" class="wechat-alert" style="display: none;">
+            <strong>⚠️ 微信内点击按钮无反应？</strong>
+            <ul>
+                <li>1️⃣ 点击右上角 <strong>···</strong></li>
+                <li>2️⃣ 选择 <strong>“在浏览器打开”</strong>（如Chrome、Safari）</li>
+                <li>3️⃣ 在浏览器中即可正常使用</li>
+            </ul>
+            <div class="tip-highlight">
+                💡 如果仍然无法打开，请尝试将文件保存到手机后，用文件管理器找到该文件，选择「打开方式」为浏览器。
+            </div>
         </div>
 
         <div class="controls">
@@ -142,12 +184,41 @@
         <!-- 题目容器 -->
         <div id="questionsContainer"></div>
 
+        <!-- 备用方案：如果按钮完全无法点击，可手动触发（但需要JS） -->
+        <div class="emergency-box" id="emergencyBox" style="display: none;">
+            <p>🔧 如果上方按钮无法点击，请尝试以下紧急方法：</p>
+            <p>👇 点击下方文字模拟点击（部分手机支持）</p>
+            <p><a href="javascript:void(0)" onclick="generateBasic()">【生成乘除脱式】</a> | 
+               <a href="javascript:void(0)" onclick="generateFraction()">【生成分数倍数】</a> | 
+               <a href="javascript:void(0)" onclick="generateAll()">【生成全部】</a>
+            </p>
+            <p style="font-size:0.9rem; color:#666;">若仍无效，请按上方提示用浏览器打开。</p>
+        </div>
+
         <div class="footer">
             纯前端生成 · 每次点击重新随机
         </div>
     </div>
 
     <script>
+        // ==================== 环境检测 ====================
+        (function() {
+            // 检测是否为微信内置浏览器
+            var ua = navigator.userAgent.toLowerCase();
+            var isWechat = ua.indexOf('micromessenger') !== -1;
+            // 检测是否通过 file:// 协议打开
+            var isFileProtocol = window.location.protocol === 'file:';
+            
+            if (isWechat && isFileProtocol) {
+                // 显示微信提示
+                var hint = document.getElementById('wechatHint');
+                if (hint) hint.style.display = 'block';
+                // 显示紧急链接
+                var emergency = document.getElementById('emergencyBox');
+                if (emergency) emergency.style.display = 'block';
+            }
+        })();
+
         // ==================== 对象类别与单位定义 ====================
         const OBJECT_CATEGORIES = {
             tree: ['苹果树', '梨树', '桃树', '柳树', '杨树'],
