@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>算术练习生成器 · 复杂分数加强版（新增部分和题型）</title>
+    <title>算术练习生成器 · 复杂分数加强版（表达优化）</title>
     <style>
         body {
             font-family: 'Segoe UI', Roboto, sans-serif;
@@ -156,7 +156,7 @@
 <body>
     <div class="container">
         <h1>🧮 算术练习生成器 · 进阶分数版</h1>
-        <div class="sub">分数应用题已保证整数 · 新增“两次用去”题型</div>
+        <div class="sub">分数已化简 · 避免“人名+人”错误表达</div>
 
         <!-- 微信环境检测与提示（动态显示） -->
         <div id="wechatHint" class="wechat-alert" style="display: none;">
@@ -192,7 +192,7 @@
         </div>
 
         <div class="footer">
-            纯前端生成 · 每次点击重新随机 · 新增分数部分和题型
+            纯前端生成 · 每次点击重新随机 · 人名搭配物品
         </div>
     </div>
 
@@ -211,6 +211,21 @@
             }
         })();
 
+        // ==================== 工具函数 ====================
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+        function lcm(a, b) {
+            return a * b / gcd(a, b);
+        }
+        function reduceFraction(numerator, denominator) {
+            let g = gcd(numerator, denominator);
+            return [numerator / g, denominator / g];
+        }
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
         // ==================== 对象类别与单位定义 ====================
         const OBJECT_CATEGORIES = {
             tree: ['苹果树', '梨树', '桃树', '柳树', '杨树'],
@@ -223,6 +238,12 @@
         };
 
         const ALL_OBJECTS = Object.values(OBJECT_CATEGORIES).flat();
+        // 非人物品列表（用于倍数题，避免“小明有13名女生”）
+        const NON_PERSON_OBJECTS = ALL_OBJECTS.filter(obj => {
+            let cat = Object.keys(OBJECT_CATEGORIES).find(c => OBJECT_CATEGORIES[c].includes(obj));
+            return cat !== 'person';
+        });
+
         const CATEGORY_NAMES = {
             tree: '树', book: '书', stationery: '笔', sport: '球', person: '人', flower: '花', other: '物品'
         };
@@ -235,30 +256,17 @@
         }
 
         function getUnit(obj) {
+            if (obj === '男生' || obj === '女生') return '名';
             if (/树|杨|柳|桃|梨/.test(obj)) return '棵';
             if (/书/.test(obj)) return '本';
             if (/笔|铅笔|钢笔|圆珠笔|毛笔/.test(obj)) return '支';
             if (/球/.test(obj)) return '个';
-            if (/生|男生|女生/.test(obj)) return '人';
             if (/花/.test(obj)) return '朵';
             if (obj === '邮票') return '张';
             if (obj === '本子') return '个';
             if (obj === '玻璃球') return '颗';
             if (obj === '一段路' || obj === '一根绳子' || obj === '一根钢管') return '米';
             return '个';
-        }
-
-        // ==================== 随机整数工具 ====================
-        function randInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-
-        // 计算最小公倍数
-        function lcm(a, b) {
-            return a * b / gcd(a, b);
-        }
-        function gcd(a, b) {
-            return b === 0 ? a : gcd(b, a % b);
         }
 
         // ==================== 乘除一位数 ====================
@@ -316,9 +324,8 @@
             return "(12 + 34) × 5 =";
         }
 
-        // ==================== 复杂分数应用题（含新增“部分和”题型） ====================
+        // ==================== 复杂分数应用题 ====================
         function genFractionQuestion() {
-            // 定义7种类型（原6种 + 新增“分数部分和”）
             const types = [
                 "求一个数的几分之几",      // 0
                 "已知一个数的几分之几求原数", // 1
@@ -326,35 +333,28 @@
                 "连续求一个数的几分之几",    // 3
                 "分数等量关系",            // 4
                 "已知分率差求单位1",        // 5
-                "分数部分和"               // 6 新增：两次用去全长的几分之几
+                "分数部分和"               // 6
             ];
             let t = types[randInt(0, types.length - 1)];
 
-            // ---------- 类型0：求一个数的几分之几 (原版) ----------
+            // ---------- 类型0：求一个数的几分之几 ----------
             if (t === "求一个数的几分之几") {
-                let whole = randInt(20, 200) * 5;
-                let numerator = randInt(1, 5);
-                let denominator = randInt(numerator + 1, 8);
-                let attempts = 20;
-                while ((whole * numerator) % denominator !== 0 && attempts > 0) {
-                    denominator = randInt(numerator + 1, 8);
-                    attempts--;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    let numerator = randInt(1, 5);
+                    let denominator = randInt(numerator + 1, 8);
+                    let [n, d] = reduceFraction(numerator, denominator);
+                    let base = randInt(5, 30) * d;
+                    let whole = base * randInt(1, 5);
+                    let obj = ALL_OBJECTS[randInt(0, ALL_OBJECTS.length - 1)];
+                    let unit = getUnit(obj);
+                    let cat = getCategory(obj);
+                    let otherName = CATEGORY_NAMES[cat] || '物品';
+                    return `果园里有${obj}${whole}${unit}，另一种${otherName}的数量是它的${n}/${d}，另一种${otherName}有多少${unit}？`;
                 }
-                if (attempts === 0) {
-                    denominator = numerator + 1;
-                    while ((whole * numerator) % denominator !== 0) {
-                        numerator = randInt(1, 5);
-                        denominator = numerator + 1;
-                    }
-                }
-                let obj = ALL_OBJECTS[randInt(0, ALL_OBJECTS.length - 1)];
-                let unit = getUnit(obj);
-                let cat = getCategory(obj);
-                let otherName = CATEGORY_NAMES[cat] || '物品';
-                return `果园里有${obj}${whole}${unit}，另一种${otherName}的数量是它的${numerator}/${denominator}，另一种${otherName}有多少${unit}？`;
+                return `果园里有苹果树120棵，另一种树的数量是它的1/3，另一种树有多少棵？`;
             }
 
-            // ---------- 类型1：已知一个数的几分之几求原数 (原版) ----------
+            // ---------- 类型1：已知一个数的几分之几求原数 ----------
             if (t === "已知一个数的几分之几求原数") {
                 const specialObjs = ["一本书", "一袋米", "一筐苹果", "一段路", "一堆煤"];
                 const unitMap = {
@@ -371,20 +371,24 @@
                 let unit = unitMap[obj];
                 let actions = actionMap[obj];
                 let action = actions[randInt(0, actions.length - 1)];
-                let numerator = randInt(1, 5);
-                let denominator = randInt(numerator + 1, 8);
-                let whole = randInt(20, 200) * denominator;
-                let part = whole * numerator / denominator;
-                let desc;
-                if (obj === "一本书") desc = `${obj}，${action}全书的${numerator}/${denominator}`;
-                else if (obj === "一袋米") desc = `${obj}，${action}这袋米的${numerator}/${denominator}`;
-                else if (obj === "一筐苹果") desc = `${obj}，${action}这筐苹果的${numerator}/${denominator}`;
-                else if (obj === "一段路") desc = `${obj}，${action}全程的${numerator}/${denominator}`;
-                else desc = `${obj}，${action}这堆煤的${numerator}/${denominator}`;
-                return `${desc}，正好是${part}${unit}，${obj}共有多少${unit}？`;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    let numerator = randInt(1, 5);
+                    let denominator = randInt(numerator + 1, 8);
+                    let [n, d] = reduceFraction(numerator, denominator);
+                    let whole = randInt(5, 30) * d;
+                    let part = whole * n / d;
+                    let desc;
+                    if (obj === "一本书") desc = `${obj}，${action}全书的${n}/${d}`;
+                    else if (obj === "一袋米") desc = `${obj}，${action}这袋米的${n}/${d}`;
+                    else if (obj === "一筐苹果") desc = `${obj}，${action}这筐苹果的${n}/${d}`;
+                    else if (obj === "一段路") desc = `${obj}，${action}全程的${n}/${d}`;
+                    else desc = `${obj}，${action}这堆煤的${n}/${d}`;
+                    return `${desc}，正好是${part}${unit}，${obj}共有多少${unit}？`;
+                }
+                return `一本书，读了全书的1/3，正好是30页，这本书共有多少页？`;
             }
 
-            // ---------- 类型2：求一个数是另一个数的几分之几 (修复单位混用) ----------
+            // ---------- 类型2：求一个数是另一个数的几分之几 ----------
             if (t === "求一个数是另一个数的几分之几") {
                 let categories = Object.keys(OBJECT_CATEGORIES);
                 let cat, items;
@@ -433,15 +437,17 @@
                     let whole1 = randInt(30, 150) * 2;
                     let n1 = randInt(1, 4);
                     let d1 = randInt(n1 + 1, 7);
-                    if ((whole1 * n1) % d1 !== 0) continue;
-                    let mid = whole1 * n1 / d1;
+                    let [n1r, d1r] = reduceFraction(n1, d1);
+                    if ((whole1 * n1r) % d1r !== 0) continue;
+                    let mid = whole1 * n1r / d1r;
                     if (mid > 600) continue;
                     let n2 = randInt(1, 4);
                     let d2 = randInt(n2 + 1, 7);
-                    if ((mid * n2) % d2 !== 0) continue;
-                    let result = mid * n2 / d2;
+                    let [n2r, d2r] = reduceFraction(n2, d2);
+                    if ((mid * n2r) % d2r !== 0) continue;
+                    let result = mid * n2r / d2r;
                     if (result > 0 && result < 1000 && Number.isInteger(result)) {
-                        return `${obj1}有${whole1}${unit1}，${obj2}的数量是${obj1}的${n1}/${d1}，${obj3}的数量是${obj2}的${n2}/${d2}，${obj3}有多少${unit3}？`;
+                        return `${obj1}有${whole1}${unit1}，${obj2}的数量是${obj1}的${n1r}/${d1r}，${obj3}的数量是${obj2}的${n2r}/${d2r}，${obj3}有多少${unit3}？`;
                     }
                 }
                 return `苹果树有120棵，梨树的数量是苹果树的2/3，桃树的数量是梨树的3/4，桃树有多少棵？`;
@@ -461,13 +467,15 @@
                 for (let attempt = 0; attempt < 200; attempt++) {
                     let a1 = randInt(1, 5);
                     let b1 = randInt(a1 + 1, 8);
+                    let [a1r, b1r] = reduceFraction(a1, b1);
                     let a2 = randInt(1, 5);
                     let b2 = randInt(a2 + 1, 8);
+                    let [a2r, b2r] = reduceFraction(a2, b2);
                     let k = randInt(2, 15);
-                    let B = k * a1 * b2;
-                    let A = k * a2 * b1;
+                    let B = k * a1r * b2r;
+                    let A = k * a2r * b1r;
                     if (A < 1000 && B < 1000 && A > 0 && B > 0) {
-                        return `${obj1}的${a1}/${b1}等于${obj2}的${a2}/${b2}，已知${obj2}有${B}${unit2}，${obj1}有多少${unit1}？`;
+                        return `${obj1}的${a1r}/${b1r}等于${obj2}的${a2r}/${b2r}，已知${obj2}有${B}${unit2}，${obj1}有多少${unit1}？`;
                     }
                 }
                 return `甲数的1/3等于乙数的2/5，乙数是30，甲数是多少？`;
@@ -485,59 +493,62 @@
                 let objA = pair[0];
                 let objB = pair[1];
                 let unit = getUnit(objA);
-                let d = randInt(3, 8);
-                let n = randInt(1, 2);
-                let tVal = randInt(3, 15);
-                let diff = n * tVal;
-                let B = d * tVal;
-                let A = B + diff;
-                if (A < 500 && B < 500 && diff < 200) {
-                    return `${objA}比${objB}多${n}/${d}，且${objA}比${objB}多${diff}${unit}，${objB}有多少${unit}？${objA}有多少${unit}？`;
-                } else {
-                    return `男生比女生多1/4，且男生比女生多5人，女生有多少人？`;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    let d = randInt(3, 8);
+                    let n = randInt(1, 2);
+                    let [nr, dr] = reduceFraction(n, d);
+                    let tVal = randInt(3, 15);
+                    let diff = nr * tVal;
+                    let B = dr * tVal;
+                    let A = B + diff;
+                    if (A < 500 && B < 500 && diff < 200) {
+                        return `${objA}比${objB}多${nr}/${dr}，且${objA}比${objB}多${diff}${unit}，${objB}有多少${unit}？${objA}有多少${unit}？`;
+                    }
                 }
+                return `男生比女生多1/4，且男生比女生多5人，女生有多少人？`;
             }
 
-            // ---------- 类型6 (新增)：分数部分和（例如两次用去全长几分之几）----------
+            // ---------- 类型6：分数部分和 ----------
             if (t === "分数部分和") {
-                // 使用长度类对象：一段路、一根绳子、一根钢管
-                const lengthObjs = ['一段路', '一根绳子', '一根钢管'];
-                let obj = lengthObjs[randInt(0, lengthObjs.length - 1)];
+                const lengthObjs = [
+                    { name: '一段路', verbs: ['修了', '走了'] },
+                    { name: '一根绳子', verbs: ['用去', '剪去'] },
+                    { name: '一根钢管', verbs: ['用去', '锯下'] }
+                ];
+                let idx = randInt(0, lengthObjs.length - 1);
+                let obj = lengthObjs[idx].name;
+                let verbs = lengthObjs[idx].verbs;
+                let verb = verbs[randInt(0, verbs.length - 1)];
                 let unit = '米';
-                // 随机两个分数，保证分子小于分母，且和不超过1
                 for (let attempt = 0; attempt < 300; attempt++) {
                     let d1 = randInt(2, 8);
                     let n1 = randInt(1, d1 - 1);
                     let d2 = randInt(2, 8);
                     let n2 = randInt(1, d2 - 1);
-                    // 确保分数和 <= 1
-                    if (n1/d1 + n2/d2 > 1) continue;
-                    // 全长需要是d1和d2的公倍数
-                    let lcmVal = lcm(d1, d2);
-                    let k = randInt(2, 15);  // 放大倍数
+                    let [n1r, d1r] = reduceFraction(n1, d1);
+                    let [n2r, d2r] = reduceFraction(n2, d2);
+                    if (n1r/d1r + n2r/d2r > 1) continue;
+                    let lcmVal = lcm(d1r, d2r);
+                    let k = randInt(2, 15);
                     let total = lcmVal * k;
-                    // 计算用去量
-                    let use1 = total * n1 / d1;
-                    let use2 = total * n2 / d2;
+                    let use1 = total * n1r / d1r;
+                    let use2 = total * n2r / d2r;
                     if (Number.isInteger(use1) && Number.isInteger(use2) && use1 + use2 <= total) {
-                        // 随机决定是求“两次一共用去”还是“还剩多少”
                         if (Math.random() < 0.5) {
-                            return `${obj}全长${total}${unit}，第一次用去全长的${n1}/${d1}，第二次用去全长的${n2}/${d2}，两次一共用去多少${unit}？`;
+                            return `${obj}全长${total}${unit}，第一次${verb}全长的${n1r}/${d1r}，第二次${verb}全长的${n2r}/${d2r}，两次一共${verb}多少${unit}？`;
                         } else {
                             let remain = total - use1 - use2;
-                            return `${obj}全长${total}${unit}，第一次用去全长的${n1}/${d1}，第二次用去全长的${n2}/${d2}，还剩多少${unit}？`;
+                            return `${obj}全长${total}${unit}，第一次${verb}全长的${n1r}/${d1r}，第二次${verb}全长的${n2r}/${d2r}，还剩多少${unit}？`;
                         }
                     }
                 }
-                // 保底题目
-                return `一段路全长63米，第一次用去全长的2/7，第二次用去全长的3/7，两次一共用去多少米？`;
+                return `一段路全长63米，第一次修了全长的2/7，第二次修了全长的3/7，两次一共修了多少米？`;
             }
 
-            // 保底
             return `果园里有苹果树120棵，梨树是苹果树的2/3，梨树有多少棵？`;
         }
 
-        // ==================== 倍数应用题 (单位已修复) ====================
+        // ==================== 倍数应用题（简单倍数排除人物品） ====================
         function genMultipleQuestion() {
             const types = ["和倍", "差倍", "简单倍数"];
             let t = types[randInt(0, 2)];
@@ -559,7 +570,7 @@
                 } while (idx2 === idx1);
                 let obj1 = items[idx1];
                 let obj2 = items[idx2];
-                let unit = getUnit(obj1); // 同一类别，单位相同
+                let unit = getUnit(obj1); // 同一类别，单位一致
                 return `${obj1}和${obj2}共有${total}${unit}，${obj1}的数量是${obj2}的${multiple}倍，${obj1}和${obj2}各有多少${unit}？`;
             }
 
@@ -584,7 +595,7 @@
                 return `${obj1}比${obj2}多${diff}${unit}，${obj1}的数量是${obj2}的${multiple}倍，${obj1}和${obj2}各有多少${unit}？`;
             }
 
-            // 简单倍数
+            // 简单倍数：只从非人物品中选取，避免“小明有13名女生”
             let base = randInt(10, 50);
             let multiple = randInt(2, 8);
             let names = ["小明", "小红", "小刚", "小丽", "小华"];
@@ -593,20 +604,17 @@
             do {
                 name2 = names[randInt(0, names.length - 1)];
             } while (name2 === name1);
-            let obj = ALL_OBJECTS[randInt(0, ALL_OBJECTS.length - 1)];
+            // 从非人物品中随机选
+            let obj = NON_PERSON_OBJECTS[randInt(0, NON_PERSON_OBJECTS.length - 1)];
             let unit = getUnit(obj);
             return `${name1}有${base}${unit}${obj}，${name2}的${obj}数是${name1}的${multiple}倍，${name2}有多少${unit}${obj}？`;
         }
 
-        // 生成8题混合 (4个分数应用题 + 4个倍数应用题，然后打乱)
+        // 生成8题混合
         function gen8FractionMultiple() {
             let questions = [];
-            for (let i = 0; i < 4; i++) {
-                questions.push(genFractionQuestion());  // 现在包含7种类型
-            }
-            for (let i = 0; i < 4; i++) {
-                questions.push(genMultipleQuestion());
-            }
+            for (let i = 0; i < 4; i++) questions.push(genFractionQuestion());
+            for (let i = 0; i < 4; i++) questions.push(genMultipleQuestion());
             // 洗牌
             for (let i = questions.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -651,7 +659,7 @@
             container.innerHTML = html;
         }
 
-        // ==================== 全局函数（供 onclick 调用） ====================
+        // ==================== 全局函数 ====================
         window.generateBasic = function() {
             let simple = [];
             for (let i = 0; i < 9; i++) simple.push(genSimpleQuestion());
@@ -674,7 +682,6 @@
             renderQuestions(simple, twoStep, fraction);
         };
 
-        // 初始显示提示
         renderQuestions([], [], []);
     </script>
 </body>
