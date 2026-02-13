@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>算术练习生成器 · 微信兼容加强版</title>
+    <title>算术练习生成器 · 复杂分数加强版</title>
     <style>
         body {
             font-family: 'Segoe UI', Roboto, sans-serif;
@@ -31,7 +31,6 @@
             font-style: italic;
             font-size: 1rem;
         }
-        /* 微信特别提示 */
         .wechat-alert {
             background: #f8d7da;
             border: 1px solid #f5c6cb;
@@ -159,8 +158,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🧮 算术练习生成器</h1>
-        <div class="sub">分数应用题已保证整数</div>
+        <h1>🧮 算术练习生成器 · 进阶分数版</h1>
+        <div class="sub">分数应用题已保证整数 · 新增复合分数题型</div>
 
         <!-- 微信环境检测与提示（动态显示） -->
         <div id="wechatHint" class="wechat-alert" style="display: none;">
@@ -177,8 +176,8 @@
 
         <div class="controls">
             <button onclick="generateBasic()">乘除 + 脱式 (21题)</button>
-            <button onclick="generateFraction()">分数倍数 (8题)</button>
-            <button onclick="generateAll()">全部 (29题)</button>
+            <button onclick="generateFraction()">分数倍数 (8题 · 含复杂类型)</button>
+            <button onclick="generateAll()">全部 (29题 · 加强版)</button>
         </div>
 
         <!-- 题目容器 -->
@@ -196,30 +195,26 @@
         </div>
 
         <div class="footer">
-            纯前端生成 · 每次点击重新随机
+            纯前端生成 · 每次点击重新随机 · 新增连续分数、等量关系、分率差问题
         </div>
     </div>
 
     <script>
         // ==================== 环境检测 ====================
         (function() {
-            // 检测是否为微信内置浏览器
             var ua = navigator.userAgent.toLowerCase();
             var isWechat = ua.indexOf('micromessenger') !== -1;
-            // 检测是否通过 file:// 协议打开
             var isFileProtocol = window.location.protocol === 'file:';
             
             if (isWechat && isFileProtocol) {
-                // 显示微信提示
                 var hint = document.getElementById('wechatHint');
                 if (hint) hint.style.display = 'block';
-                // 显示紧急链接
                 var emergency = document.getElementById('emergencyBox');
                 if (emergency) emergency.style.display = 'block';
             }
         })();
 
-        // ==================== 对象类别与单位定义 ====================
+        // ==================== 对象类别与单位定义（原样保留） ====================
         const OBJECT_CATEGORIES = {
             tree: ['苹果树', '梨树', '桃树', '柳树', '杨树'],
             book: ['故事书', '科技书', '文艺书', '漫画书'],
@@ -315,11 +310,21 @@
             return "(12 + 34) × 5 =";
         }
 
-        // ==================== 分数应用题 ====================
+        // ==================== 复杂分数应用题（增强版） ====================
+        // 新增类型：连续求一个数的几分之几、等量关系、分率差问题
         function genFractionQuestion() {
-            const types = ["求一个数的几分之几", "已知一个数的几分之几求原数", "求一个数是另一个数的几分之几"];
-            let t = types[randInt(0, 2)];
+            // 定义6种类型（原有3种 + 新增3种）
+            const types = [
+                "求一个数的几分之几",      // 0
+                "已知一个数的几分之几求原数", // 1
+                "求一个数是另一个数的几分之几", // 2
+                "连续求一个数的几分之几",    // 3  (复杂·两步)
+                "分数等量关系",            // 4  (复杂·甲数几分之几等于乙数几分之几)
+                "已知分率差求单位1"        // 5  (复杂·A比B多几分之几, 且知道多出数量)
+            ];
+            let t = types[randInt(0, types.length - 1)];
 
+            // ---------- 类型0：求一个数的几分之几 (原版) ----------
             if (t === "求一个数的几分之几") {
                 let whole = randInt(20, 200) * 5;
                 let numerator = randInt(1, 5);
@@ -343,11 +348,10 @@
                 return `果园里有${obj}${whole}${unit}，另一种${otherName}的数量是它的${numerator}/${denominator}，另一种${otherName}有多少${unit}？`;
             }
 
+            // ---------- 类型1：已知一个数的几分之几求原数 (原版) ----------
             if (t === "已知一个数的几分之几求原数") {
                 const specialObjs = ["一本书", "一袋米", "一筐苹果", "一段路", "一堆煤"];
-                const unitMap = {
-                    "一本书": "页", "一袋米": "千克", "一筐苹果": "个", "一段路": "米", "一堆煤": "吨"
-                };
+                const unitMap = { "一本书": "页", "一袋米": "千克", "一筐苹果": "个", "一段路": "米", "一堆煤": "吨" };
                 const actionMap = {
                     "一本书": ["看了", "读了"],
                     "一袋米": ["吃了", "用去"],
@@ -372,27 +376,133 @@
                 return `${desc}，正好是${part}${unit}，${obj}共有多少${unit}？`;
             }
 
-            // 求一个数是另一个数的几分之几
-            let categories = Object.keys(OBJECT_CATEGORIES);
-            let cat, items;
-            do {
-                cat = categories[randInt(0, categories.length - 1)];
-                items = OBJECT_CATEGORIES[cat];
-            } while (items.length < 2);
-            let idx1 = randInt(0, items.length - 1);
-            let idx2;
-            do {
-                idx2 = randInt(0, items.length - 1);
-            } while (idx2 === idx1);
-            let obj1 = items[idx1];
-            let obj2 = items[idx2];
-            let unit = getUnit(obj1);
-            let a = randInt(10, 50);
-            let b = randInt(10, 50);
-            return `学校有${obj1}${a}${unit}，${obj2}${b}${unit}，${obj1}的数量是${obj2}的几分之几？`;
+            // ---------- 类型2：求一个数是另一个数的几分之几 (原版) ----------
+            if (t === "求一个数是另一个数的几分之几") {
+                let categories = Object.keys(OBJECT_CATEGORIES);
+                let cat, items;
+                do {
+                    cat = categories[randInt(0, categories.length - 1)];
+                    items = OBJECT_CATEGORIES[cat];
+                } while (items.length < 2);
+                let idx1 = randInt(0, items.length - 1);
+                let idx2;
+                do {
+                    idx2 = randInt(0, items.length - 1);
+                } while (idx2 === idx1);
+                let obj1 = items[idx1];
+                let obj2 = items[idx2];
+                let unit = getUnit(obj1);
+                let a = randInt(10, 50);
+                let b = randInt(10, 50);
+                return `学校有${obj1}${a}${unit}，${obj2}${b}${unit}，${obj1}的数量是${obj2}的几分之几？`;
+            }
+
+            // ---------- 类型3 (新增)：连续求一个数的几分之几 (两步) ----------
+            if (t === "连续求一个数的几分之几") {
+                // 从同一类别中选三个不同物品，保证场景合理
+                let catNames = Object.keys(OBJECT_CATEGORIES);
+                let cat;
+                let items;
+                do {
+                    cat = catNames[randInt(0, catNames.length - 1)];
+                    items = OBJECT_CATEGORIES[cat];
+                } while (items.length < 2); // 至少需要2个，最好3个
+                // 取三个不同物品，若不足则用“另一种xx”代替
+                let obj1, obj2, obj3;
+                if (items.length >= 3) {
+                    let shuffled = [...items].sort(() => Math.random() - 0.5);
+                    obj1 = shuffled[0];
+                    obj2 = shuffled[1];
+                    obj3 = shuffled[2];
+                } else {
+                    obj1 = items[0];
+                    obj2 = items[1];
+                    obj3 = "另一种" + (CATEGORY_NAMES[cat] || '物品');
+                }
+                let unit = getUnit(obj1);
+                // 生成整数：整体 whole1，分数 f1 = n1/d1, f2 = n2/d2
+                for (let attempt = 0; attempt < 300; attempt++) {
+                    let whole1 = randInt(30, 150) * 2; // 保证一定范围
+                    let n1 = randInt(1, 4);
+                    let d1 = randInt(n1 + 1, 7);
+                    if ((whole1 * n1) % d1 !== 0) continue;
+                    let mid = whole1 * n1 / d1;
+                    if (mid > 600) continue;
+                    let n2 = randInt(1, 4);
+                    let d2 = randInt(n2 + 1, 7);
+                    if ((mid * n2) % d2 !== 0) continue;
+                    let result = mid * n2 / d2;
+                    if (result > 0 && result < 1000 && Number.isInteger(result)) {
+                        return `${obj1}有${whole1}${unit}，${obj2}的棵数是${obj1}的${n1}/${d1}，${obj3}的棵数是${obj2}的${n2}/${d2}，${obj3}有多少${unit}？`;
+                    }
+                }
+                // 保底题目
+                return `苹果树有120棵，梨树的棵数是苹果树的2/3，桃树的棵数是梨树的3/4，桃树有多少棵？`;
+            }
+
+            // ---------- 类型4 (新增)：分数等量关系 (甲数的a/b等于乙数的c/d，求甲数) ----------
+            if (t === "分数等量关系") {
+                let catNames = Object.keys(OBJECT_CATEGORIES);
+                let cat1 = catNames[randInt(0, catNames.length - 1)];
+                let cat2 = catNames[randInt(0, catNames.length - 1)];
+                let items1 = OBJECT_CATEGORIES[cat1];
+                let items2 = OBJECT_CATEGORIES[cat2];
+                let obj1 = items1[randInt(0, items1.length - 1)];
+                let obj2 = items2[randInt(0, items2.length - 1)];
+                let unit1 = getUnit(obj1);
+                let unit2 = getUnit(obj2);
+                // 构造 A * (a1/b1) = B * (a2/b2)  => A = B * a2 * b1 / (b2 * a1)
+                // 令 B = k * a1 * b2, 则 A = k * a2 * b1
+                for (let attempt = 0; attempt < 200; attempt++) {
+                    let a1 = randInt(1, 5);
+                    let b1 = randInt(a1 + 1, 8);
+                    let a2 = randInt(1, 5);
+                    let b2 = randInt(a2 + 1, 8);
+                    let k = randInt(2, 15);
+                    let B = k * a1 * b2;
+                    let A = k * a2 * b1;
+                    if (A < 1000 && B < 1000 && A > 0 && B > 0) {
+                        return `${obj1}的${a1}/${b1}等于${obj2}的${a2}/${b2}，已知${obj2}有${B}${unit2}，${obj1}有多少${unit1}？`;
+                    }
+                }
+                return `甲数的1/3等于乙数的2/5，乙数是30，甲数是多少？`;
+            }
+
+            // ---------- 类型5 (新增)：已知分率差求单位1 (A比B多几分之几，且知道多出数量) ----------
+            if (t === "已知分率差求单位1") {
+                // 常用比较对象：男生女生、苹果梨等
+                let pairs = [
+                    ['男生', '女生'],
+                    ['苹果树', '梨树'],
+                    ['故事书', '科技书'],
+                    ['红花', '黄花']
+                ];
+                let pair = pairs[randInt(0, pairs.length - 1)];
+                let objA = pair[0];
+                let objB = pair[1];
+                let unit = getUnit(objA);
+                // 多出的分数 n/d ，通常分子为1更自然，但也可用 >1
+                let d = randInt(3, 8);      // 分母 3~8
+                let n = randInt(1, 2);       // 分子取1或2，保证易懂
+                // 多出数量 = B * n/d, 所以 B = 多出数量 * d / n
+                // 令 多出数量 = n * t, 则 B = t * d
+                let t = randInt(3, 15);
+                let diff = n * t;            // 多出数量
+                let B = d * t;                // 单位1 (B)
+                let A = B + diff;
+                if (A < 500 && B < 500 && diff < 200) {
+                    return `${objA}比${objB}多${n}/${d}，且${objA}比${objB}多${diff}${unit}，${objB}有多少${unit}？${objA}有多少${unit}？`;
+                } else {
+                    // 保底简单题
+                    return `男生比女生多1/4，且男生比女生多5人，女生有多少人？`;
+                }
+            }
+
+            // 保底（理论上不会到这里）
+            return `果园里有苹果树120棵，梨树是苹果树的2/3，梨树有多少棵？`;
         }
 
-        // ==================== 倍数应用题 ====================
+        // ==================== 倍数应用题 (原版不变) ====================
         function genMultipleQuestion() {
             const types = ["和倍", "差倍", "简单倍数"];
             let t = types[randInt(0, 2)];
@@ -453,10 +563,13 @@
             return `${name1}有${base}${unit}${obj}，${name2}的${obj}数是${name1}的${multiple}倍，${name2}有多少${unit}${obj}？`;
         }
 
+        // 生成8题混合 (4个分数应用题(含复杂类型) + 4个倍数应用题，然后打乱)
         function gen8FractionMultiple() {
             let questions = [];
             for (let i = 0; i < 4; i++) {
-                questions.push(genFractionQuestion());
+                questions.push(genFractionQuestion());  // 现在包含6种类型
+            }
+            for (let i = 0; i < 4; i++) {
                 questions.push(genMultipleQuestion());
             }
             // 洗牌
@@ -489,7 +602,7 @@
             }
 
             if (fractionList.length > 0) {
-                html += `<div class="section"><h2>📌 三、分数与倍数应用题（${fractionList.length}题）</h2><div class="question-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">`;
+                html += `<div class="section"><h2>📌 三、分数与倍数应用题（${fractionList.length}题 · 含复杂类型）</h2><div class="question-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">`;
                 fractionList.forEach((q, idx) => {
                     html += `<div class="question-item"><span class="number">${idx+1}.</span><span class="expr">${q}</span></div>`;
                 });
@@ -513,7 +626,7 @@
         };
 
         window.generateFraction = function() {
-            let fraction = gen8FractionMultiple();
+            let fraction = gen8FractionMultiple();  // 现在包含增强的分数类型
             renderQuestions([], [], fraction);
         };
 
