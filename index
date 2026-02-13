@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>算术练习生成器 · 微信兼容版</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #f0f7fb;
+            margin: 0;
+            padding: 30px 15px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #1a3e60;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 1.8rem;
+        }
+        .sub {
+            text-align: center;
+            color: #4a6a7f;
+            margin-bottom: 15px;
+            font-style: italic;
+            font-size: 1rem;
+        }
+        .wechat-tip {
+            background: #fff3cd;
+            border: 1px solid #ffe69c;
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 25px;
+            color: #856404;
+            text-align: center;
+            font-size: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: white;
+            border: 2px solid #2a9d8f;
+            color: #2a9d8f;
+            font-size: 1.2rem;
+            padding: 12px 25px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active {
+            background: #2a9d8f;
+            color: white;
+            border-color: #1e7a6f;
+            transform: scale(0.98);
+        }
+        .section {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,30,50,0.1);
+            padding: 25px 20px;
+            margin-bottom: 30px;
+            border: 1px solid #d9e6f2;
+        }
+        .section h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #0b4b6b;
+            font-weight: 500;
+            border-left: 6px solid #2a9d8f;
+            padding-left: 15px;
+            font-size: 1.6rem;
+        }
+        .question-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 15px;
+        }
+        .question-item {
+            background: #f8fbfe;
+            border: 1px solid #cbdde8;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #0a3142;
+            display: flex;
+            align-items: baseline;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            word-break: break-word;
+        }
+        .number {
+            color: #2a9d8f;
+            font-weight: 600;
+            margin-right: 12px;
+            font-size: 1.1rem;
+            min-width: 30px;
+        }
+        .expr {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
+        }
+        .footer {
+            text-align: center;
+            color: #5a7e8c;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 算术练习生成器</h1>
+        <div class="sub">分数应用题已保证整数 · 微信内若无法点击请用浏览器打开</div>
+        
+        <!-- 微信提示 -->
+        <div class="wechat-tip">
+            ⚠️ 如果点击按钮没有反应，请点击右上角 <strong>···</strong> 选择 <strong>“在浏览器打开”</strong>。
+        </div>
+
+        <div class="controls">
+            <button onclick="generateBasic()">乘除 + 脱式 (21题)</button>
+            <button onclick="generateFraction()">分数倍数 (8题)</button>
+            <button onclick="generateAll()">全部 (29题)</button>
+        </div>
+
+        <!-- 题目容器 -->
+        <div id="questionsContainer"></div>
+
+        <div class="footer">
+            纯前端生成 · 每次点击重新随机
+        </div>
+    </div>
+
+    <script>
+        // ==================== 对象类别与单位定义 ====================
+        const OBJECT_CATEGORIES = {
+            tree: ['苹果树', '梨树', '桃树', '柳树', '杨树'],
+            book: ['故事书', '科技书', '文艺书', '漫画书'],
+            stationery: ['铅笔', '钢笔', '圆珠笔', '毛笔'],
+            sport: ['篮球', '足球', '排球'],
+            person: ['男生', '女生'],
+            flower: ['红花', '黄花', '紫花'],
+            other: ['邮票', '本子', '玻璃球']
+        };
+
+        const ALL_OBJECTS = Object.values(OBJECT_CATEGORIES).flat();
+        const CATEGORY_NAMES = {
+            tree: '树', book: '书', stationery: '笔', sport: '球', person: '人', flower: '花', other: '物品'
+        };
+
+        function getCategory(obj) {
+            for (let [cat, items] of Object.entries(OBJECT_CATEGORIES)) {
+                if (items.includes(obj)) return cat;
+            }
+            return 'other';
+        }
+
+        function getUnit(obj) {
+            if (/树|杨|柳|桃|梨/.test(obj)) return '棵';
+            if (/书/.test(obj)) return '本';
+            if (/笔|铅笔|钢笔|圆珠笔|毛笔/.test(obj)) return '支';
+            if (/球/.test(obj)) return '个';
+            if (/生|男生|女生/.test(obj)) return '人';
+            if (/花/.test(obj)) return '朵';
+            if (obj === '邮票') return '张';
+            if (obj === '本子') return '个';
+            if (obj === '玻璃球') return '颗';
+            return '个';
+        }
+
+        // ==================== 随机整数工具 ====================
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // ==================== 乘除一位数 ====================
+        function genSimpleQuestion() {
+            if (Math.random() < 0.5) {
+                let a = randInt(100, 999);
+                let b = randInt(2, 9);
+                return `${a} × ${b} =`;
+            } else {
+                let divisor = randInt(2, 9);
+                let minQuotient = Math.ceil(100 / divisor);
+                let maxQuotient = Math.floor(999 / divisor);
+                let quotient = randInt(minQuotient, maxQuotient);
+                let dividend = divisor * quotient;
+                return `${dividend} ÷ ${divisor} =`;
+            }
+        }
+
+        // ==================== 两步脱式 ====================
+        function safeCalc(op1, op2, operator) {
+            if (operator === '+') return op1 + op2;
+            if (operator === '-') return op1 >= op2 ? op1 - op2 : null;
+            if (operator === '×' || operator === '*') return op1 * op2;
+            if (operator === '÷' || operator === '/') {
+                if (op2 !== 0 && op1 % op2 === 0) return op1 / op2;
+                return null;
+            }
+            return null;
+        }
+
+        function genTwoStepQuestion() {
+            const operators = ['+', '-', '×', '÷'];
+            for (let attempt = 0; attempt < 500; attempt++) {
+                let parenPos = randInt(0, 1);
+                let op1 = operators[randInt(0, 3)];
+                let op2 = operators[randInt(0, 3)];
+                let a = randInt(1, 99);
+                let b = randInt(1, 99);
+                let c = randInt(1, 99);
+
+                if (parenPos === 0) {
+                    let inner = safeCalc(a, b, op1);
+                    if (inner === null || inner > 999) continue;
+                    let final = safeCalc(inner, c, op2);
+                    if (final === null || final > 999) continue;
+                    return `(${a} ${op1} ${b}) ${op2} ${c} =`;
+                } else {
+                    let inner = safeCalc(b, c, op2);
+                    if (inner === null || inner > 999) continue;
+                    let final = safeCalc(a, inner, op1);
+                    if (final === null || final > 999) continue;
+                    return `${a} ${op1} (${b} ${op2} ${c}) =`;
+                }
+            }
+            return "(12 + 34) × 5 =";
+        }
+
+        // ==================== 分数应用题 ====================
+        function genFractionQuestion() {
+            const types = ["求一个数的几分之几", "已知一个数的几分之几求原数", "求一个数是另一个数的几分之几"];
+            let t = types[randInt(0, 2)];
+
+            if (t === "求一个数的几分之几") {
+                let whole = randInt(20, 200) * 5;
+                let numerator = randInt(1, 5);
+                let denominator = randInt(numerator + 1, 8);
+                let attempts = 20;
+                while ((whole * numerator) % denominator !== 0 && attempts > 0) {
+                    denominator = randInt(numerator + 1, 8);
+                    attempts--;
+                }
+                if (attempts === 0) {
+                    denominator = numerator + 1;
+                    while ((whole * numerator) % denominator !== 0) {
+                        numerator = randInt(1, 5);
+                        denominator = numerator + 1;
+                    }
+                }
+                let obj = ALL_OBJECTS[randInt(0, ALL_OBJECTS.length - 1)];
+                let unit = getUnit(obj);
+                let cat = getCategory(obj);
+                let otherName = CATEGORY_NAMES[cat] || '物品';
+                return `果园里有${obj}${whole}${unit}，另一种${otherName}的数量是它的${numerator}/${denominator}，另一种${otherName}有多少${unit}？`;
+            }
+
+            if (t === "已知一个数的几分之几求原数") {
+                const specialObjs = ["一本书", "一袋米", "一筐苹果", "一段路", "一堆煤"];
+                const unitMap = {
+                    "一本书": "页", "一袋米": "千克", "一筐苹果": "个", "一段路": "米", "一堆煤": "吨"
+                };
+                const actionMap = {
+                    "一本书": ["看了", "读了"],
+                    "一袋米": ["吃了", "用去"],
+                    "一筐苹果": ["吃了", "卖出"],
+                    "一段路": ["走了", "修了"],
+                    "一堆煤": ["用了", "运走"]
+                };
+                let obj = specialObjs[randInt(0, specialObjs.length - 1)];
+                let unit = unitMap[obj];
+                let actions = actionMap[obj];
+                let action = actions[randInt(0, actions.length - 1)];
+                let numerator = randInt(1, 5);
+                let denominator = randInt(numerator + 1, 8);
+                let whole = randInt(20, 200) * denominator;
+                let part = whole * numerator / denominator;
+                let desc;
+                if (obj === "一本书") desc = `${obj}，${action}全书的${numerator}/${denominator}`;
+                else if (obj === "一袋米") desc = `${obj}，${action}这袋米的${numerator}/${denominator}`;
+                else if (obj === "一筐苹果") desc = `${obj}，${action}这筐苹果的${numerator}/${denominator}`;
+                else if (obj === "一段路") desc = `${obj}，${action}全程的${numerator}/${denominator}`;
+                else desc = `${obj}，${action}这堆煤的${numerator}/${denominator}`;
+                return `${desc}，正好是${part}${unit}，${obj}共有多少${unit}？`;
+            }
+
+            // 求一个数是另一个数的几分之几
+            let categories = Object.keys(OBJECT_CATEGORIES);
+            let cat, items;
+            do {
+                cat = categories[randInt(0, categories.length - 1)];
+                items = OBJECT_CATEGORIES[cat];
+            } while (items.length < 2);
+            let idx1 = randInt(0, items.length - 1);
+            let idx2;
+            do {
+                idx2 = randInt(0, items.length - 1);
+            } while (idx2 === idx1);
+            let obj1 = items[idx1];
+            let obj2 = items[idx2];
+            let unit = getUnit(obj1);
+            let a = randInt(10, 50);
+            let b = randInt(10, 50);
+            return `学校有${obj1}${a}${unit}，${obj2}${b}${unit}，${obj1}的数量是${obj2}的几分之几？`;
+        }
+
+        // ==================== 倍数应用题 ====================
+        function genMultipleQuestion() {
+            const types = ["和倍", "差倍", "简单倍数"];
+            let t = types[randInt(0, 2)];
+
+            if (t === "和倍") {
+                let multiple = randInt(2, 5);
+                let small = randInt(20, 100);
+                let total = small * (multiple + 1);
+                let categories = Object.keys(OBJECT_CATEGORIES);
+                let cat, items;
+                do {
+                    cat = categories[randInt(0, categories.length - 1)];
+                    items = OBJECT_CATEGORIES[cat];
+                } while (items.length < 2);
+                let idx1 = randInt(0, items.length - 1);
+                let idx2;
+                do {
+                    idx2 = randInt(0, items.length - 1);
+                } while (idx2 === idx1);
+                let obj1 = items[idx1];
+                let obj2 = items[idx2];
+                let unit = getUnit(obj1);
+                return `${obj1}和${obj2}共有${total}${unit}，${obj1}的数量是${obj2}的${multiple}倍，${obj1}和${obj2}各有多少${unit}？`;
+            }
+
+            if (t === "差倍") {
+                let multiple = randInt(2, 6);
+                let small = randInt(20, 80);
+                let diff = small * (multiple - 1);
+                let categories = Object.keys(OBJECT_CATEGORIES);
+                let cat, items;
+                do {
+                    cat = categories[randInt(0, categories.length - 1)];
+                    items = OBJECT_CATEGORIES[cat];
+                } while (items.length < 2);
+                let idx1 = randInt(0, items.length - 1);
+                let idx2;
+                do {
+                    idx2 = randInt(0, items.length - 1);
+                } while (idx2 === idx1);
+                let obj1 = items[idx1];
+                let obj2 = items[idx2];
+                let unit = getUnit(obj1);
+                return `${obj1}比${obj2}多${diff}${unit}，${obj1}的数量是${obj2}的${multiple}倍，${obj1}和${obj2}各有多少${unit}？`;
+            }
+
+            // 简单倍数
+            let base = randInt(10, 50);
+            let multiple = randInt(2, 8);
+            let names = ["小明", "小红", "小刚", "小丽", "小华"];
+            let name1 = names[randInt(0, names.length - 1)];
+            let name2;
+            do {
+                name2 = names[randInt(0, names.length - 1)];
+            } while (name2 === name1);
+            let obj = ALL_OBJECTS[randInt(0, ALL_OBJECTS.length - 1)];
+            let unit = getUnit(obj);
+            return `${name1}有${base}${unit}${obj}，${name2}的${obj}数是${name1}的${multiple}倍，${name2}有多少${unit}${obj}？`;
+        }
+
+        function gen8FractionMultiple() {
+            let questions = [];
+            for (let i = 0; i < 4; i++) {
+                questions.push(genFractionQuestion());
+                questions.push(genMultipleQuestion());
+            }
+            // 洗牌
+            for (let i = questions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [questions[i], questions[j]] = [questions[j], questions[i]];
+            }
+            return questions;
+        }
+
+        // ==================== 渲染函数 ====================
+        function renderQuestions(simpleList, twoStepList, fractionList) {
+            const container = document.getElementById('questionsContainer');
+            let html = '';
+
+            if (simpleList.length > 0) {
+                html += `<div class="section"><h2>📌 一、三/四位数乘除一位数（${simpleList.length}题）</h2><div class="question-grid">`;
+                simpleList.forEach((q, idx) => {
+                    html += `<div class="question-item"><span class="number">${idx+1}.</span><span class="expr">${q}</span></div>`;
+                });
+                html += '</div></div>';
+            }
+
+            if (twoStepList.length > 0) {
+                html += `<div class="section"><h2>📌 二、两步带小括号脱式计算（${twoStepList.length}题）</h2><div class="question-grid">`;
+                twoStepList.forEach((q, idx) => {
+                    html += `<div class="question-item"><span class="number">${idx+1}.</span><span class="expr">${q}</span></div>`;
+                });
+                html += '</div></div>';
+            }
+
+            if (fractionList.length > 0) {
+                html += `<div class="section"><h2>📌 三、分数与倍数应用题（${fractionList.length}题）</h2><div class="question-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">`;
+                fractionList.forEach((q, idx) => {
+                    html += `<div class="question-item"><span class="number">${idx+1}.</span><span class="expr">${q}</span></div>`;
+                });
+                html += '</div></div>';
+            }
+
+            if (html === '') {
+                html = '<div style="text-align:center; padding:50px; color:#888;">点击上方按钮生成题目</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        // ==================== 全局函数（供 onclick 调用） ====================
+        window.generateBasic = function() {
+            let simple = [];
+            for (let i = 0; i < 9; i++) simple.push(genSimpleQuestion());
+            let twoStep = [];
+            for (let i = 0; i < 12; i++) twoStep.push(genTwoStepQuestion());
+            renderQuestions(simple, twoStep, []);
+        };
+
+        window.generateFraction = function() {
+            let fraction = gen8FractionMultiple();
+            renderQuestions([], [], fraction);
+        };
+
+        window.generateAll = function() {
+            let simple = [];
+            for (let i = 0; i < 9; i++) simple.push(genSimpleQuestion());
+            let twoStep = [];
+            for (let i = 0; i < 12; i++) twoStep.push(genTwoStepQuestion());
+            let fraction = gen8FractionMultiple();
+            renderQuestions(simple, twoStep, fraction);
+        };
+
+        // 初始显示提示
+        renderQuestions([], [], []);
+    </script>
+</body>
+</html>
